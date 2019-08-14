@@ -1,0 +1,1091 @@
+#1. Show installed versions
+pd.show_versions()
+#2. Create an example DataFrame
+df = pd.DataFrame({'col one':[100, 200], 'col two':[300, 400]})
+df
+
+pd.DataFrame(np.random.rand(4, 8))
+pd.DataFrame(np.random.rand(4, 8), columns=list('abcdefgh'))
+# 3. Rename columns
+df
+df = df.rename({'col one':'col_one', 'col two':'col_two'}, axis='columns')
+df.columns = ['col_one', 'col_two']
+df.columns = df.columns.str.replace(' ', '_')
+
+df
+df.add_prefix('X_')
+df.add_suffix('_Y')
+
+4. Reverse row order
+drinks.head()
+drinks.loc[::-1].head()
+
+drinks.loc[::-1].reset_index(drop=True).head()
+
+5. Reverse column order
+drinks.loc[:, ::-1].head()
+6. Select columns by data type
+drinks.dtypes
+drinks.select_dtypes(include='number').head()
+drinks.select_dtypes(include='object').head()
+drinks.select_dtypes(include=['number', 'object', 'category', 'datetime']).head()
+drinks.select_dtypes(exclude='number').head()
+
+7. Convert strings to numbers
+Let's create another example DataFrame:
+
+df = pd.DataFrame({'col_one':['1.1', '2.2', '3.3'],
+                   'col_two':['4.4', '5.5', '6.6'],
+                   'col_three':['7.7', '8.8', '-']})
+df
+
+
+df.dtypes
+
+
+df.astype({'col_one':'float', 'col_two':'float'}).dtypes
+
+
+However, this would have resulted in an error if you tried to use it on the third column, because that column contains a dash to represent zero and pandas doesn't understand how to handle it.
+
+Instead, you can use the to_numeric() function on the third column and tell it to convert any invalid input into NaN values:
+
+pd.to_numeric(df.col_three, errors='coerce')
+
+
+
+
+pd.to_numeric(df.col_three, errors='coerce').fillna(0)
+
+
+
+df = df.apply(pd.to_numeric, errors='coerce').fillna(0)
+df
+
+
+df.dtypes
+
+
+8. Reduce DataFrame size
+pandas DataFrames are designed to fit into memory, and so sometimes you need to reduce the DataFrame size in order to work with it on your system.
+
+Here's the size of the drinks DataFrame:
+
+drinks.info(memory_usage='deep')
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 193 entries, 0 to 192
+Data columns (total 6 columns):
+country                         193 non-null object
+beer_servings                   193 non-null int64
+spirit_servings                 193 non-null int64
+wine_servings                   193 non-null int64
+total_litres_of_pure_alcohol    193 non-null float64
+continent                       193 non-null object
+dtypes: float64(1), int64(3), object(2)
+memory usage: 30.4 KB
+You can see that it currently uses 30.4 KB.
+
+If you're having performance problems with your DataFrame, or you can't even read it into memory, there are two easy steps you can take during the file reading process to reduce the DataFrame size.
+
+The first step is to only read in the columns that you actually need, which we specify with the "usecols" parameter:
+
+cols = ['beer_servings', 'continent']
+small_drinks = pd.read_csv('http://bit.ly/drinksbycountry', usecols=cols)
+small_drinks.info(memory_usage='deep')
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 193 entries, 0 to 192
+Data columns (total 2 columns):
+beer_servings    193 non-null int64
+continent        193 non-null object
+dtypes: int64(1), object(1)
+memory usage: 13.6 KB
+By only reading in these two columns, we've reduced the DataFrame size to 13.6 KB.
+
+The second step is to convert any object columns containing categorical data to the category data type, which we specify with the "dtype" parameter:
+
+dtypes = {'continent':'category'}
+smaller_drinks = pd.read_csv('http://bit.ly/drinksbycountry', usecols=cols, dtype=dtypes)
+smaller_drinks.info(memory_usage='deep')
+
+9. Build a DataFrame from multiple files (row-wise)
+Let's say that your dataset is spread across multiple files, but you want to read the dataset into a single DataFrame.
+
+For example, I have a small dataset of stock data in which each CSV file only includes a single day. Here's the first day:
+
+pd.read_csv('data/stocks1.csv')
+Date	Close	Volume	Symbol
+0	2016-10-03	31.50	14070500	CSCO
+1	2016-10-03	112.52	21701800	AAPL
+2	2016-10-03	57.42	19189500	MSFT
+Here's the second day:
+
+pd.read_csv('data/stocks2.csv')
+Date	Close	Volume	Symbol
+0	2016-10-04	113.00	29736800	AAPL
+1	2016-10-04	57.24	20085900	MSFT
+2	2016-10-04	31.35	18460400	CSCO
+And here's the third day:
+
+pd.read_csv('data/stocks3.csv')
+Date	Close	Volume	Symbol
+0	2016-10-05	57.64	16726400	MSFT
+1	2016-10-05	31.59	11808600	CSCO
+2	2016-10-05	113.05	21453100	AAPL
+You could read each CSV file into its own DataFrame, combine them together, and then delete the original DataFrames, but that would be memory inefficient and require a lot of code.
+
+A better solution is to use the built-in glob module:
+
+from glob import glob
+You can pass a pattern to glob(), including wildcard characters, and it will return a list of all files that match that pattern.
+
+In this case, glob is looking in the "data" subdirectory for all CSV files that start with the word "stocks":
+
+stock_files = sorted(glob('data/stocks*.csv'))
+stock_files
+['data/stocks1.csv', 'data/stocks2.csv', 'data/stocks3.csv']
+glob returns filenames in an arbitrary order, which is why we sorted the list using Python's built-in sorted() function.
+
+We can then use a generator expression to read each of the files using read_csv() and pass the results to the concat() function, which will concatenate the rows into a single DataFrame:
+
+pd.concat((pd.read_csv(file) for file in stock_files))
+Date	Close	Volume	Symbol
+0	2016-10-03	31.50	14070500	CSCO
+1	2016-10-03	112.52	21701800	AAPL
+2	2016-10-03	57.42	19189500	MSFT
+0	2016-10-04	113.00	29736800	AAPL
+1	2016-10-04	57.24	20085900	MSFT
+2	2016-10-04	31.35	18460400	CSCO
+0	2016-10-05	57.64	16726400	MSFT
+1	2016-10-05	31.59	11808600	CSCO
+2	2016-10-05	113.05	21453100	AAPL
+Unfortunately, there are now duplicate values in the index. To avoid that, we can tell the concat() function to ignore the index and instead use the default integer index:
+
+pd.concat((pd.read_csv(file) for file in stock_files), ignore_index=True)
+Date	Close	Volume	Symbol
+0	2016-10-03	31.50	14070500	CSCO
+1	2016-10-03	112.52	21701800	AAPL
+2	2016-10-03	57.42	19189500	MSFT
+3	2016-10-04	113.00	29736800	AAPL
+4	2016-10-04	57.24	20085900	MSFT
+5	2016-10-04	31.35	18460400	CSCO
+6	2016-10-05	57.64	16726400	MSFT
+7	2016-10-05	31.59	11808600	CSCO
+8	2016-10-05	113.05	21453100	AAPL
+10. Build a DataFrame from multiple files (column-wise)
+The previous trick is useful when each file contains rows from your dataset. But what if each file instead contains columns from your dataset?
+
+Here's an example in which the drinks dataset has been split into two CSV files, and each file contains three columns:
+
+pd.read_csv('data/drinks1.csv').head()
+country	beer_servings	spirit_servings
+0	Afghanistan	0	0
+1	Albania	89	132
+2	Algeria	25	0
+3	Andorra	245	138
+4	Angola	217	57
+pd.read_csv('data/drinks2.csv').head()
+wine_servings	total_litres_of_pure_alcohol	continent
+0	0	0.0	Asia
+1	54	4.9	Europe
+2	14	0.7	Africa
+3	312	12.4	Europe
+4	45	5.9	Africa
+Similar to the previous trick, we'll start by using glob():
+
+drink_files = sorted(glob('data/drinks*.csv'))
+And this time, we'll tell the concat() function to concatenate along the columns axis:
+
+pd.concat((pd.read_csv(file) for file in drink_files), axis='columns').head()
+country	beer_servings	spirit_servings	wine_servings	total_litres_of_pure_alcohol	continent
+0	Afghanistan	0	0	0	0.0	Asia
+1	Albania	89	132	54	4.9	Europe
+2	Algeria	25	0	14	0.7	Africa
+3	Andorra	245	138	312	12.4	Europe
+4	Angola	217	57	45	5.9	Africa
+Now our DataFrame has all six columns.
+
+11. Create a DataFrame from the clipboard
+Let's say that you have some data stored in an Excel spreadsheet or a Google Sheet, and you want to get it into a DataFrame as quickly as possible.
+
+Just select the data and copy it to the clipboard. Then, you can use the read_clipboard() function to read it into a DataFrame:
+
+df = pd.read_clipboard()
+df
+Column A	Column B	Column C
+0	1	4.4	seven
+1	2	5.5	eight
+2	3	6.6	nine
+Just like the read_csv() function, read_clipboard() automatically detects the correct data type for each column:
+
+df.dtypes
+Column A      int64
+Column B    float64
+Column C     object
+dtype: object
+Let's copy one other dataset to the clipboard:
+
+df = pd.read_clipboard()
+df
+Left	Right
+Alice	10	40
+Bob	20	50
+Charlie	30	60
+Amazingly, pandas has even identified the first column as the index:
+
+df.index
+Index(['Alice', 'Bob', 'Charlie'], dtype='object')
+Keep in mind that if you want your work to be reproducible in the future, read_clipboard() is not the recommended approach.
+
+12. Split a DataFrame into two random subsets
+Let's say that you want to split a DataFrame into two parts, randomly assigning 75% of the rows to one DataFrame and the other 25% to a second DataFrame.
+
+For example, we have a DataFrame of movie ratings with 979 rows:
+
+len(movies)
+979
+We can use the sample() method to randomly select 75% of the rows and assign them to the "movies_1" DataFrame:
+
+movies_1 = movies.sample(frac=0.75, random_state=1234)
+Then we can use the drop() method to drop all rows that are in "movies_1" and assign the remaining rows to "movies_2":
+
+movies_2 = movies.drop(movies_1.index)
+You can see that the total number of rows is correct:
+
+len(movies_1) + len(movies_2)
+979
+And you can see from the index that every movie is in either "movies_1":
+
+movies_1.index.sort_values()
+Int64Index([  0,   2,   5,   6,   7,   8,   9,  11,  13,  16,
+            ...
+            966, 967, 969, 971, 972, 974, 975, 976, 977, 978],
+           dtype='int64', length=734)
+...or "movies_2":
+
+movies_2.index.sort_values()
+Int64Index([  1,   3,   4,  10,  12,  14,  15,  18,  26,  30,
+            ...
+            931, 934, 937, 941, 950, 954, 960, 968, 970, 973],
+           dtype='int64', length=245)
+Keep in mind that this approach will not work if your index values are not unique.
+
+13. Filter a DataFrame by multiple categories
+Let's take a look at the movies DataFrame:
+
+movies.head()
+star_rating	title	content_rating	genre	duration	actors_list
+0	9.3	The Shawshank Redemption	R	Crime	142	[u'Tim Robbins', u'Morgan Freeman', u'Bob Gunt...
+1	9.2	The Godfather	R	Crime	175	[u'Marlon Brando', u'Al Pacino', u'James Caan']
+2	9.1	The Godfather: Part II	R	Crime	200	[u'Al Pacino', u'Robert De Niro', u'Robert Duv...
+3	9.0	The Dark Knight	PG-13	Action	152	[u'Christian Bale', u'Heath Ledger', u'Aaron E...
+4	8.9	Pulp Fiction	R	Crime	154	[u'John Travolta', u'Uma Thurman', u'Samuel L....
+One of the columns is genre:
+
+movies.genre.unique()
+array(['Crime', 'Action', 'Drama', 'Western', 'Adventure', 'Biography',
+       'Comedy', 'Animation', 'Mystery', 'Horror', 'Film-Noir', 'Sci-Fi',
+       'History', 'Thriller', 'Family', 'Fantasy'], dtype=object)
+If we wanted to filter the DataFrame to only show movies with the genre Action or Drama or Western, we could use multiple conditions separated by the "or" operator:
+
+movies[(movies.genre == 'Action') |
+       (movies.genre == 'Drama') |
+       (movies.genre == 'Western')].head()
+star_rating	title	content_rating	genre	duration	actors_list
+3	9.0	The Dark Knight	PG-13	Action	152	[u'Christian Bale', u'Heath Ledger', u'Aaron E...
+5	8.9	12 Angry Men	NOT RATED	Drama	96	[u'Henry Fonda', u'Lee J. Cobb', u'Martin Bals...
+6	8.9	The Good, the Bad and the Ugly	NOT RATED	Western	161	[u'Clint Eastwood', u'Eli Wallach', u'Lee Van ...
+9	8.9	Fight Club	R	Drama	139	[u'Brad Pitt', u'Edward Norton', u'Helena Bonh...
+11	8.8	Inception	PG-13	Action	148	[u'Leonardo DiCaprio', u'Joseph Gordon-Levitt'...
+However, you can actually rewrite this code more clearly by using the isin() method and passing it a list of genres:
+
+movies[movies.genre.isin(['Action', 'Drama', 'Western'])].head()
+star_rating	title	content_rating	genre	duration	actors_list
+3	9.0	The Dark Knight	PG-13	Action	152	[u'Christian Bale', u'Heath Ledger', u'Aaron E...
+5	8.9	12 Angry Men	NOT RATED	Drama	96	[u'Henry Fonda', u'Lee J. Cobb', u'Martin Bals...
+6	8.9	The Good, the Bad and the Ugly	NOT RATED	Western	161	[u'Clint Eastwood', u'Eli Wallach', u'Lee Van ...
+9	8.9	Fight Club	R	Drama	139	[u'Brad Pitt', u'Edward Norton', u'Helena Bonh...
+11	8.8	Inception	PG-13	Action	148	[u'Leonardo DiCaprio', u'Joseph Gordon-Levitt'...
+And if you want to reverse this filter, so that you are excluding (rather than including) those three genres, you can put a tilde in front of the condition:
+
+movies[~movies.genre.isin(['Action', 'Drama', 'Western'])].head()
+star_rating	title	content_rating	genre	duration	actors_list
+0	9.3	The Shawshank Redemption	R	Crime	142	[u'Tim Robbins', u'Morgan Freeman', u'Bob Gunt...
+1	9.2	The Godfather	R	Crime	175	[u'Marlon Brando', u'Al Pacino', u'James Caan']
+2	9.1	The Godfather: Part II	R	Crime	200	[u'Al Pacino', u'Robert De Niro', u'Robert Duv...
+4	8.9	Pulp Fiction	R	Crime	154	[u'John Travolta', u'Uma Thurman', u'Samuel L....
+7	8.9	The Lord of the Rings: The Return of the King	PG-13	Adventure	201	[u'Elijah Wood', u'Viggo Mortensen', u'Ian McK...
+This works because tilde is the "not" operator in Python.
+
+14. Filter a DataFrame by largest categories
+Let's say that you needed to filter the movies DataFrame by genre, but only include the 3 largest genres.
+
+We'll start by taking the value_counts() of genre and saving it as a Series called counts:
+
+counts = movies.genre.value_counts()
+counts
+Drama        278
+Comedy       156
+Action       136
+Crime        124
+Biography     77
+Adventure     75
+Animation     62
+Horror        29
+Mystery       16
+Western        9
+Sci-Fi         5
+Thriller       5
+Film-Noir      3
+Family         2
+Fantasy        1
+History        1
+Name: genre, dtype: int64
+The Series method nlargest() makes it easy to select the 3 largest values in this Series:
+
+counts.nlargest(3)
+Drama     278
+Comedy    156
+Action    136
+Name: genre, dtype: int64
+And all we actually need from this Series is the index:
+
+counts.nlargest(3).index
+Index(['Drama', 'Comedy', 'Action'], dtype='object')
+Finally, we can pass the index object to isin(), and it will be treated like a list of genres:
+
+movies[movies.genre.isin(counts.nlargest(3).index)].head()
+star_rating	title	content_rating	genre	duration	actors_list
+3	9.0	The Dark Knight	PG-13	Action	152	[u'Christian Bale', u'Heath Ledger', u'Aaron E...
+5	8.9	12 Angry Men	NOT RATED	Drama	96	[u'Henry Fonda', u'Lee J. Cobb', u'Martin Bals...
+9	8.9	Fight Club	R	Drama	139	[u'Brad Pitt', u'Edward Norton', u'Helena Bonh...
+11	8.8	Inception	PG-13	Action	148	[u'Leonardo DiCaprio', u'Joseph Gordon-Levitt'...
+12	8.8	Star Wars: Episode V - The Empire Strikes Back	PG	Action	124	[u'Mark Hamill', u'Harrison Ford', u'Carrie Fi...
+Thus, only Drama and Comedy and Action movies remain in the DataFrame.
+
+15. Handle missing values
+Let's look at a dataset of UFO sightings:
+
+ufo.head()
+City	Colors Reported	Shape Reported	State	Time
+0	Ithaca	NaN	TRIANGLE	NY	1930-06-01 22:00:00
+1	Willingboro	NaN	OTHER	NJ	1930-06-30 20:00:00
+2	Holyoke	NaN	OVAL	CO	1931-02-15 14:00:00
+3	Abilene	NaN	DISK	KS	1931-06-01 13:00:00
+4	New York Worlds Fair	NaN	LIGHT	NY	1933-04-18 19:00:00
+You'll notice that some of the values are missing.
+
+To find out how many values are missing in each column, you can use the isna() method and then take the sum():
+
+ufo.isna().sum()
+City                  25
+Colors Reported    15359
+Shape Reported      2644
+State                  0
+Time                   0
+dtype: int64
+isna() generated a DataFrame of True and False values, and sum() converted all of the True values to 1 and added them up.
+
+Similarly, you can find out the percentage of values that are missing by taking the mean() of isna():
+
+ufo.isna().mean()
+City               0.001371
+Colors Reported    0.842004
+Shape Reported     0.144948
+State              0.000000
+Time               0.000000
+dtype: float64
+If you want to drop the columns that have any missing values, you can use the dropna() method:
+
+ufo.dropna(axis='columns').head()
+State	Time
+0	NY	1930-06-01 22:00:00
+1	NJ	1930-06-30 20:00:00
+2	CO	1931-02-15 14:00:00
+3	KS	1931-06-01 13:00:00
+4	NY	1933-04-18 19:00:00
+Or if you want to drop columns in which more than 10% of the values are missing, you can set a threshold for dropna():
+
+ufo.dropna(thresh=len(ufo)*0.9, axis='columns').head()
+City	State	Time
+0	Ithaca	NY	1930-06-01 22:00:00
+1	Willingboro	NJ	1930-06-30 20:00:00
+2	Holyoke	CO	1931-02-15 14:00:00
+3	Abilene	KS	1931-06-01 13:00:00
+4	New York Worlds Fair	NY	1933-04-18 19:00:00
+len(ufo) returns the total number of rows, and then we multiply that by 0.9 to tell pandas to only keep columns in which at least 90% of the values are not missing.
+
+16. Split a string into multiple columns
+Let's create another example DataFrame:
+
+df = pd.DataFrame({'name':['John Arthur Doe', 'Jane Ann Smith'],
+                   'location':['Los Angeles, CA', 'Washington, DC']})
+df
+name	location
+0	John Arthur Doe	Los Angeles, CA
+1	Jane Ann Smith	Washington, DC
+What if we wanted to split the "name" column into three separate columns, for first, middle, and last name? We would use the str.split() method and tell it to split on a space character and expand the results into a DataFrame:
+
+df.name.str.split(' ', expand=True)
+0	1	2
+0	John	Arthur	Doe
+1	Jane	Ann	Smith
+These three columns can actually be saved to the original DataFrame in a single assignment statement:
+
+df[['first', 'middle', 'last']] = df.name.str.split(' ', expand=True)
+df
+name	location	first	middle	last
+0	John Arthur Doe	Los Angeles, CA	John	Arthur	Doe
+1	Jane Ann Smith	Washington, DC	Jane	Ann	Smith
+What if we wanted to split a string, but only keep one of the resulting columns? For example, let's split the location column on "comma space":
+
+df.location.str.split(', ', expand=True)
+0	1
+0	Los Angeles	CA
+1	Washington	DC
+If we only cared about saving the city name in column 0, we can just select that column and save it to the DataFrame:
+
+df['city'] = df.location.str.split(', ', expand=True)[0]
+df
+name	location	first	middle	last	city
+0	John Arthur Doe	Los Angeles, CA	John	Arthur	Doe	Los Angeles
+1	Jane Ann Smith	Washington, DC	Jane	Ann	Smith	Washington
+17. Expand a Series of lists into a DataFrame
+Let's create another example DataFrame:
+
+df = pd.DataFrame({'col_one':['a', 'b', 'c'], 'col_two':[[10, 40], [20, 50], [30, 60]]})
+df
+col_one	col_two
+0	a	[10, 40]
+1	b	[20, 50]
+2	c	[30, 60]
+There are two columns, and the second column contains regular Python lists of integers.
+
+If we wanted to expand the second column into its own DataFrame, we can use the apply() method on that column and pass it the Series constructor:
+
+df_new = df.col_two.apply(pd.Series)
+df_new
+0	1
+0	10	40
+1	20	50
+2	30	60
+And by using the concat() function, you can combine the original DataFrame with the new DataFrame:
+
+pd.concat([df, df_new], axis='columns')
+col_one	col_two	0	1
+0	a	[10, 40]	10	40
+1	b	[20, 50]	20	50
+2	c	[30, 60]	30	60
+18. Aggregate by multiple functions
+Let's look at a DataFrame of orders from the Chipotle restaurant chain:
+
+orders.head(10)
+order_id	quantity	item_name	choice_description	item_price
+0	1	1	Chips and Fresh Tomato Salsa	NaN	2.39
+1	1	1	Izze	[Clementine]	3.39
+2	1	1	Nantucket Nectar	[Apple]	3.39
+3	1	1	Chips and Tomatillo-Green Chili Salsa	NaN	2.39
+4	2	2	Chicken Bowl	[Tomatillo-Red Chili Salsa (Hot), [Black Beans...	16.98
+5	3	1	Chicken Bowl	[Fresh Tomato Salsa (Mild), [Rice, Cheese, Sou...	10.98
+6	3	1	Side of Chips	NaN	1.69
+7	4	1	Steak Burrito	[Tomatillo Red Chili Salsa, [Fajita Vegetables...	11.75
+8	4	1	Steak Soft Tacos	[Tomatillo Green Chili Salsa, [Pinto Beans, Ch...	9.25
+9	5	1	Steak Burrito	[Fresh Tomato Salsa, [Rice, Black Beans, Pinto...	9.25
+Each order has an order_id and consists of one or more rows. To figure out the total price of an order, you sum the item_price for that order_id. For example, here's the total price of order number 1:
+
+orders[orders.order_id == 1].item_price.sum()
+11.56
+If you wanted to calculate the total price of every order, you would groupby() order_id and then take the sum of item_price for each group:
+
+orders.groupby('order_id').item_price.sum().head()
+order_id
+1    11.56
+2    16.98
+3    12.67
+4    21.00
+5    13.70
+Name: item_price, dtype: float64
+However, you're not actually limited to aggregating by a single function such as sum(). To aggregate by multiple functions, you use the agg() method and pass it a list of functions such as sum() and count():
+
+orders.groupby('order_id').item_price.agg(['sum', 'count']).head()
+sum	count
+order_id		
+1	11.56	4
+2	16.98	1
+3	12.67	2
+4	21.00	2
+5	13.70	2
+That gives us the total price of each order as well as the number of items in each order.
+
+19. Combine the output of an aggregation with a DataFrame
+Let's take another look at the orders DataFrame:
+
+orders.head(10)
+order_id	quantity	item_name	choice_description	item_price
+0	1	1	Chips and Fresh Tomato Salsa	NaN	2.39
+1	1	1	Izze	[Clementine]	3.39
+2	1	1	Nantucket Nectar	[Apple]	3.39
+3	1	1	Chips and Tomatillo-Green Chili Salsa	NaN	2.39
+4	2	2	Chicken Bowl	[Tomatillo-Red Chili Salsa (Hot), [Black Beans...	16.98
+5	3	1	Chicken Bowl	[Fresh Tomato Salsa (Mild), [Rice, Cheese, Sou...	10.98
+6	3	1	Side of Chips	NaN	1.69
+7	4	1	Steak Burrito	[Tomatillo Red Chili Salsa, [Fajita Vegetables...	11.75
+8	4	1	Steak Soft Tacos	[Tomatillo Green Chili Salsa, [Pinto Beans, Ch...	9.25
+9	5	1	Steak Burrito	[Fresh Tomato Salsa, [Rice, Black Beans, Pinto...	9.25
+What if we wanted to create a new column listing the total price of each order? Recall that we calculated the total price using the sum() method:
+
+orders.groupby('order_id').item_price.sum().head()
+order_id
+1    11.56
+2    16.98
+3    12.67
+4    21.00
+5    13.70
+Name: item_price, dtype: float64
+sum() is an aggregation function, which means that it returns a reduced version of the input data.
+
+In other words, the output of the sum() function:
+
+len(orders.groupby('order_id').item_price.sum())
+1834
+...is smaller than the input to the function:
+
+len(orders.item_price)
+4622
+The solution is to use the transform() method, which performs the same calculation but returns output data that is the same shape as the input data:
+
+total_price = orders.groupby('order_id').item_price.transform('sum')
+len(total_price)
+4622
+We'll store the results in a new DataFrame column called total_price:
+
+orders['total_price'] = total_price
+orders.head(10)
+order_id	quantity	item_name	choice_description	item_price	total_price
+0	1	1	Chips and Fresh Tomato Salsa	NaN	2.39	11.56
+1	1	1	Izze	[Clementine]	3.39	11.56
+2	1	1	Nantucket Nectar	[Apple]	3.39	11.56
+3	1	1	Chips and Tomatillo-Green Chili Salsa	NaN	2.39	11.56
+4	2	2	Chicken Bowl	[Tomatillo-Red Chili Salsa (Hot), [Black Beans...	16.98	16.98
+5	3	1	Chicken Bowl	[Fresh Tomato Salsa (Mild), [Rice, Cheese, Sou...	10.98	12.67
+6	3	1	Side of Chips	NaN	1.69	12.67
+7	4	1	Steak Burrito	[Tomatillo Red Chili Salsa, [Fajita Vegetables...	11.75	21.00
+8	4	1	Steak Soft Tacos	[Tomatillo Green Chili Salsa, [Pinto Beans, Ch...	9.25	21.00
+9	5	1	Steak Burrito	[Fresh Tomato Salsa, [Rice, Black Beans, Pinto...	9.25	13.70
+As you can see, the total price of each order is now listed on every single line.
+
+That makes it easy to calculate the percentage of the total order price that each line represents:
+
+orders['percent_of_total'] = orders.item_price / orders.total_price
+orders.head(10)
+order_id	quantity	item_name	choice_description	item_price	total_price	percent_of_total
+0	1	1	Chips and Fresh Tomato Salsa	NaN	2.39	11.56	0.206747
+1	1	1	Izze	[Clementine]	3.39	11.56	0.293253
+2	1	1	Nantucket Nectar	[Apple]	3.39	11.56	0.293253
+3	1	1	Chips and Tomatillo-Green Chili Salsa	NaN	2.39	11.56	0.206747
+4	2	2	Chicken Bowl	[Tomatillo-Red Chili Salsa (Hot), [Black Beans...	16.98	16.98	1.000000
+5	3	1	Chicken Bowl	[Fresh Tomato Salsa (Mild), [Rice, Cheese, Sou...	10.98	12.67	0.866614
+6	3	1	Side of Chips	NaN	1.69	12.67	0.133386
+7	4	1	Steak Burrito	[Tomatillo Red Chili Salsa, [Fajita Vegetables...	11.75	21.00	0.559524
+8	4	1	Steak Soft Tacos	[Tomatillo Green Chili Salsa, [Pinto Beans, Ch...	9.25	21.00	0.440476
+9	5	1	Steak Burrito	[Fresh Tomato Salsa, [Rice, Black Beans, Pinto...	9.25	13.70	0.675182
+20. Select a slice of rows and columns
+Let's take a look at another dataset:
+
+titanic.head()
+PassengerId	Survived	Pclass	Name	Sex	Age	SibSp	Parch	Ticket	Fare	Cabin	Embarked
+0	1	0	3	Braund, Mr. Owen Harris	male	22.0	1	0	A/5 21171	7.2500	NaN	S
+1	2	1	1	Cumings, Mrs. John Bradley (Florence Briggs Th...	female	38.0	1	0	PC 17599	71.2833	C85	C
+2	3	1	3	Heikkinen, Miss. Laina	female	26.0	0	0	STON/O2. 3101282	7.9250	NaN	S
+3	4	1	1	Futrelle, Mrs. Jacques Heath (Lily May Peel)	female	35.0	1	0	113803	53.1000	C123	S
+4	5	0	3	Allen, Mr. William Henry	male	35.0	0	0	373450	8.0500	NaN	S
+This is the famous Titanic dataset, which shows information about passengers on the Titanic and whether or not they survived.
+
+If you wanted a numerical summary of the dataset, you would use the describe() method:
+
+titanic.describe()
+PassengerId	Survived	Pclass	Age	SibSp	Parch	Fare
+count	891.000000	891.000000	891.000000	714.000000	891.000000	891.000000	891.000000
+mean	446.000000	0.383838	2.308642	29.699118	0.523008	0.381594	32.204208
+std	257.353842	0.486592	0.836071	14.526497	1.102743	0.806057	49.693429
+min	1.000000	0.000000	1.000000	0.420000	0.000000	0.000000	0.000000
+25%	223.500000	0.000000	2.000000	20.125000	0.000000	0.000000	7.910400
+50%	446.000000	0.000000	3.000000	28.000000	0.000000	0.000000	14.454200
+75%	668.500000	1.000000	3.000000	38.000000	1.000000	0.000000	31.000000
+max	891.000000	1.000000	3.000000	80.000000	8.000000	6.000000	512.329200
+However, the resulting DataFrame might be displaying more information than you need.
+
+If you wanted to filter it to only show the "five-number summary", you can use the loc accessor and pass it a slice of the "min" through the "max" row labels:
+
+titanic.describe().loc['min':'max']
+PassengerId	Survived	Pclass	Age	SibSp	Parch	Fare
+min	1.0	0.0	1.0	0.420	0.0	0.0	0.0000
+25%	223.5	0.0	2.0	20.125	0.0	0.0	7.9104
+50%	446.0	0.0	3.0	28.000	0.0	0.0	14.4542
+75%	668.5	1.0	3.0	38.000	1.0	0.0	31.0000
+max	891.0	1.0	3.0	80.000	8.0	6.0	512.3292
+And if you're not interested in all of the columns, you can also pass it a slice of column labels:
+
+titanic.describe().loc['min':'max', 'Pclass':'Parch']
+Pclass	Age	SibSp	Parch
+min	1.0	0.420	0.0	0.0
+25%	2.0	20.125	0.0	0.0
+50%	3.0	28.000	0.0	0.0
+75%	3.0	38.000	1.0	0.0
+max	3.0	80.000	8.0	6.0
+21. Reshape a MultiIndexed Series
+The Titanic dataset has a "Survived" column made up of ones and zeros, so you can calculate the overall survival rate by taking a mean of that column:
+
+titanic.Survived.mean()
+0.3838383838383838
+If you wanted to calculate the survival rate by a single category such as "Sex", you would use a groupby():
+
+titanic.groupby('Sex').Survived.mean()
+Sex
+female    0.742038
+male      0.188908
+Name: Survived, dtype: float64
+And if you wanted to calculate the survival rate across two different categories at once, you would groupby() both of those categories:
+
+titanic.groupby(['Sex', 'Pclass']).Survived.mean()
+Sex     Pclass
+female  1         0.968085
+        2         0.921053
+        3         0.500000
+male    1         0.368852
+        2         0.157407
+        3         0.135447
+Name: Survived, dtype: float64
+This shows the survival rate for every combination of Sex and Passenger Class. It's stored as a MultiIndexed Series, meaning that it has multiple index levels to the left of the actual data.
+
+It can be hard to read and interact with data in this format, so it's often more convenient to reshape a MultiIndexed Series into a DataFrame by using the unstack() method:
+
+titanic.groupby(['Sex', 'Pclass']).Survived.mean().unstack()
+Pclass	1	2	3
+Sex			
+female	0.968085	0.921053	0.500000
+male	0.368852	0.157407	0.135447
+This DataFrame contains the same exact data as the MultiIndexed Series, except that now you can interact with it using familiar DataFrame methods.
+
+22. Create a pivot table
+If you often create DataFrames like the one above, you might find it more convenient to use the pivot_table() method instead:
+
+titanic.pivot_table(index='Sex', columns='Pclass', values='Survived', aggfunc='mean')
+Pclass	1	2	3
+Sex			
+female	0.968085	0.921053	0.500000
+male	0.368852	0.157407	0.135447
+With a pivot table, you directly specify the index, the columns, the values, and the aggregation function.
+
+An added benefit of a pivot table is that you can easily add row and column totals by setting margins=True:
+
+titanic.pivot_table(index='Sex', columns='Pclass', values='Survived', aggfunc='mean',
+                    margins=True)
+Pclass	1	2	3	All
+Sex				
+female	0.968085	0.921053	0.500000	0.742038
+male	0.368852	0.157407	0.135447	0.188908
+All	0.629630	0.472826	0.242363	0.383838
+This shows the overall survival rate as well as the survival rate by Sex and Passenger Class.
+
+Finally, you can create a cross-tabulation just by changing the aggregation function from "mean" to "count":
+
+titanic.pivot_table(index='Sex', columns='Pclass', values='Survived', aggfunc='count',
+                    margins=True)
+Pclass	1	2	3	All
+Sex				
+female	94	76	144	314
+male	122	108	347	577
+All	216	184	491	891
+This shows the number of records that appear in each combination of categories.
+
+23. Convert continuous data into categorical data
+Let's take a look at the Age column from the Titanic dataset:
+
+titanic.Age.head(10)
+0    22.0
+1    38.0
+2    26.0
+3    35.0
+4    35.0
+5     NaN
+6    54.0
+7     2.0
+8    27.0
+9    14.0
+Name: Age, dtype: float64
+It's currently continuous data, but what if you wanted to convert it into categorical data?
+
+One solution would be to label the age ranges, such as "child", "young adult", and "adult". The best way to do this is by using the cut() function:
+
+pd.cut(titanic.Age, bins=[0, 18, 25, 99], labels=['child', 'young adult', 'adult']).head(10)
+0    young adult
+1          adult
+2          adult
+3          adult
+4          adult
+5            NaN
+6          adult
+7          child
+8          adult
+9          child
+Name: Age, dtype: category
+Categories (3, object): [child < young adult < adult]
+This assigned each value to a bin with a label. Ages 0 to 18 were assigned the label "child", ages 18 to 25 were assigned the label "young adult", and ages 25 to 99 were assigned the label "adult".
+
+Notice that the data type is now "category", and the categories are automatically ordered.
+
+24. Change display options
+Let's take another look at the Titanic dataset:
+
+titanic.head()
+PassengerId	Survived	Pclass	Name	Sex	Age	SibSp	Parch	Ticket	Fare	Cabin	Embarked
+0	1	0	3	Braund, Mr. Owen Harris	male	22.0	1	0	A/5 21171	7.2500	NaN	S
+1	2	1	1	Cumings, Mrs. John Bradley (Florence Briggs Th...	female	38.0	1	0	PC 17599	71.2833	C85	C
+2	3	1	3	Heikkinen, Miss. Laina	female	26.0	0	0	STON/O2. 3101282	7.9250	NaN	S
+3	4	1	1	Futrelle, Mrs. Jacques Heath (Lily May Peel)	female	35.0	1	0	113803	53.1000	C123	S
+4	5	0	3	Allen, Mr. William Henry	male	35.0	0	0	373450	8.0500	NaN	S
+Notice that the Age column has 1 decimal place and the Fare column has 4 decimal places. What if you wanted to standardize the display to use 2 decimal places?
+
+You can use the set_option() function:
+
+pd.set_option('display.float_format', '{:.2f}'.format)
+The first argument is the name of the option, and the second argument is a Python format string.
+
+titanic.head()
+PassengerId	Survived	Pclass	Name	Sex	Age	SibSp	Parch	Ticket	Fare	Cabin	Embarked
+0	1	0	3	Braund, Mr. Owen Harris	male	22.00	1	0	A/5 21171	7.25	NaN	S
+1	2	1	1	Cumings, Mrs. John Bradley (Florence Briggs Th...	female	38.00	1	0	PC 17599	71.28	C85	C
+2	3	1	3	Heikkinen, Miss. Laina	female	26.00	0	0	STON/O2. 3101282	7.92	NaN	S
+3	4	1	1	Futrelle, Mrs. Jacques Heath (Lily May Peel)	female	35.00	1	0	113803	53.10	C123	S
+4	5	0	3	Allen, Mr. William Henry	male	35.00	0	0	373450	8.05	NaN	S
+You can see that Age and Fare are now using 2 decimal places. Note that this did not change the underlying data, only the display of the data.
+
+You can also reset any option back to its default:
+
+pd.reset_option('display.float_format')
+There are many more options you can specify is a similar way.
+
+25. Style a DataFrame
+The previous trick is useful if you want to change the display of your entire notebook. However, a more flexible and powerful approach is to define the style of a particular DataFrame.
+
+Let's return to the stocks DataFrame:
+
+stocks
+Date	Close	Volume	Symbol
+0	2016-10-03	31.50	14070500	CSCO
+1	2016-10-03	112.52	21701800	AAPL
+2	2016-10-03	57.42	19189500	MSFT
+3	2016-10-04	113.00	29736800	AAPL
+4	2016-10-04	57.24	20085900	MSFT
+5	2016-10-04	31.35	18460400	CSCO
+6	2016-10-05	57.64	16726400	MSFT
+7	2016-10-05	31.59	11808600	CSCO
+8	2016-10-05	113.05	21453100	AAPL
+We can create a dictionary of format strings that specifies how each column should be formatted:
+
+format_dict = {'Date':'{:%m/%d/%y}', 'Close':'${:.2f}', 'Volume':'{:,}'}
+And then we can pass it to the DataFrame's style.format() method:
+
+stocks.style.format(format_dict)
+Date	Close	Volume	Symbol
+0	10/03/16	$31.50	14,070,500	CSCO
+1	10/03/16	$112.52	21,701,800	AAPL
+2	10/03/16	$57.42	19,189,500	MSFT
+3	10/04/16	$113.00	29,736,800	AAPL
+4	10/04/16	$57.24	20,085,900	MSFT
+5	10/04/16	$31.35	18,460,400	CSCO
+6	10/05/16	$57.64	16,726,400	MSFT
+7	10/05/16	$31.59	11,808,600	CSCO
+8	10/05/16	$113.05	21,453,100	AAPL
+Notice that the Date is now in month-day-year format, the closing price has a dollar sign, and the Volume has commas.
+
+We can apply more styling by chaining additional methods:
+
+(stocks.style.format(format_dict)
+ .hide_index()
+ .highlight_min('Close', color='red')
+ .highlight_max('Close', color='lightgreen')
+)
+Date	Close	Volume	Symbol
+10/03/16	$31.50	14,070,500	CSCO
+10/03/16	$112.52	21,701,800	AAPL
+10/03/16	$57.42	19,189,500	MSFT
+10/04/16	$113.00	29,736,800	AAPL
+10/04/16	$57.24	20,085,900	MSFT
+10/04/16	$31.35	18,460,400	CSCO
+10/05/16	$57.64	16,726,400	MSFT
+10/05/16	$31.59	11,808,600	CSCO
+10/05/16	$113.05	21,453,100	AAPL
+We've now hidden the index, highlighted the minimum Close value in red, and highlighted the maximum Close value in green.
+
+Here's another example of DataFrame styling:
+
+(stocks.style.format(format_dict)
+ .hide_index()
+ .background_gradient(subset='Volume', cmap='Blues')
+)
+Date	Close	Volume	Symbol
+10/03/16	$31.50	14,070,500	CSCO
+10/03/16	$112.52	21,701,800	AAPL
+10/03/16	$57.42	19,189,500	MSFT
+10/04/16	$113.00	29,736,800	AAPL
+10/04/16	$57.24	20,085,900	MSFT
+10/04/16	$31.35	18,460,400	CSCO
+10/05/16	$57.64	16,726,400	MSFT
+10/05/16	$31.59	11,808,600	CSCO
+10/05/16	$113.05	21,453,100	AAPL
+The Volume column now has a background gradient to help you easily identify high and low values.
+
+And here's one final example:
+
+(stocks.style.format(format_dict)
+ .hide_index()
+ .bar('Volume', color='lightblue', align='zero')
+ .set_caption('Stock Prices from October 2016')
+)
+Stock Prices from October 2016
+Date	Close	Volume	Symbol
+10/03/16	$31.50	14,070,500	CSCO
+10/03/16	$112.52	21,701,800	AAPL
+10/03/16	$57.42	19,189,500	MSFT
+10/04/16	$113.00	29,736,800	AAPL
+10/04/16	$57.24	20,085,900	MSFT
+10/04/16	$31.35	18,460,400	CSCO
+10/05/16	$57.64	16,726,400	MSFT
+10/05/16	$31.59	11,808,600	CSCO
+10/05/16	$113.05	21,453,100	AAPL
+There's now a bar chart within the Volume column and a caption above the DataFrame.
+
+Note that there are many more options for how you can style your DataFrame.
+
+Bonus: Profile a DataFrame
+Let's say that you've got a new dataset, and you want to quickly explore it without too much work. There's a separate package called pandas-profiling that is designed for this purpose.
+
+First you have to install it using conda or pip. Once that's done, you import pandas_profiling:
+
+import pandas_profiling
+Then, simply run the ProfileReport() function and pass it any DataFrame. It returns an interactive HTML report:
+
+The first section is an overview of the dataset and a list of possible issues with the data.
+The next section gives a summary of each column. You can click "toggle details" for even more information.
+The third section shows a heatmap of the correlation between columns.
+And the fourth section shows the head of the dataset.
+pandas_profiling.ProfileReport(titanic)
+Overview
+Dataset info
+
+Number of variables	12
+Number of observations	891
+Total Missing (%)	8.1%
+Total size in memory	83.6 KiB
+Average record size in memory	96.1 B
+Variables types
+
+Numeric	6
+Categorical	4
+Boolean	1
+Date	0
+Text (Unique)	1
+Rejected	0
+Unsupported	0
+Warnings
+
+Age has 177 / 19.9% missing values Missing
+Cabin has 687 / 77.1% missing values Missing
+Cabin has a high cardinality: 148 distinct values Warning
+Fare has 15 / 1.7% zeros Zeros
+Parch has 678 / 76.1% zeros Zeros
+SibSp has 608 / 68.2% zeros Zeros
+Ticket has a high cardinality: 681 distinct values Warning
+Variables
+Age
+Numeric
+
+Distinct count	89
+Unique (%)	10.0%
+Missing (%)	19.9%
+Missing (n)	177
+Infinite (%)	0.0%
+Infinite (n)	0
+Mean	29.699
+Minimum	0.42
+Maximum	80
+Zeros (%)	0.0%
+Toggle details
+Cabin
+Categorical
+
+Distinct count	148
+Unique (%)	16.6%
+Missing (%)	77.1%
+Missing (n)	687
+G6	  4
+C23 C25 C27	  4
+B96 B98	  4
+Other values (144)	192
+(Missing)	687
+Toggle details
+Embarked
+Categorical
+
+Distinct count	4
+Unique (%)	0.4%
+Missing (%)	0.2%
+Missing (n)	2
+S	644
+C	168
+Q	  77
+(Missing)	  2
+Toggle details
+Fare
+Numeric
+
+Distinct count	248
+Unique (%)	27.8%
+Missing (%)	0.0%
+Missing (n)	0
+Infinite (%)	0.0%
+Infinite (n)	0
+Mean	32.204
+Minimum	0
+Maximum	512.33
+Zeros (%)	1.7%
+Toggle details
+Name
+Categorical, Unique
+
+First 3 values
+Mockler, Miss. Helen Mary "Ellie"
+Baclini, Miss. Eugenie
+Mayne, Mlle. Berthe Antonine ("Mrs de Villiers")
+Last 3 values
+Hoyt, Mrs. Frederick Maxfield (Jane Anne Forby)
+Gustafsson, Mr. Karl Gideon
+Dowdell, Miss. Elizabeth Toggle details
+Parch
+Numeric
+
+Distinct count	7
+Unique (%)	0.8%
+Missing (%)	0.0%
+Missing (n)	0
+Infinite (%)	0.0%
+Infinite (n)	0
+Mean	0.38159
+Minimum	0
+Maximum	6
+Zeros (%)	76.1%
+Toggle details
+PassengerId
+Numeric
+
+Distinct count	891
+Unique (%)	100.0%
+Missing (%)	0.0%
+Missing (n)	0
+Infinite (%)	0.0%
+Infinite (n)	0
+Mean	446
+Minimum	1
+Maximum	891
+Zeros (%)	0.0%
+Toggle details
+Pclass
+Numeric
+
+Distinct count	3
+Unique (%)	0.3%
+Missing (%)	0.0%
+Missing (n)	0
+Infinite (%)	0.0%
+Infinite (n)	0
+Mean	2.3086
+Minimum	1
+Maximum	3
+Zeros (%)	0.0%
+Toggle details
+Sex
+Categorical
+
+Distinct count	2
+Unique (%)	0.2%
+Missing (%)	0.0%
+Missing (n)	0
+male	577
+female	314
+Toggle details
+SibSp
+Numeric
+
+Distinct count	7
+Unique (%)	0.8%
+Missing (%)	0.0%
+Missing (n)	0
+Infinite (%)	0.0%
+Infinite (n)	0
+Mean	0.52301
+Minimum	0
+Maximum	8
+Zeros (%)	68.2%
+Toggle details
+Survived
+Boolean
+
+Distinct count	2
+Unique (%)	0.2%
+Missing (%)	0.0%
+Missing (n)	0
+Mean	0.38384
+0	549
+1	342
+Toggle details
+Ticket
+Categorical
+
+Distinct count	681
+Unique (%)	76.4%
+Missing (%)	0.0%
+Missing (n)	0
+347082	  7
+1601	  7
+CA. 2343	  7
+Other values (678)	870
+Toggle details
+Correlations
+
+Sample
+PassengerId	Survived	Pclass	Name	Sex	Age	SibSp	Parch	Ticket	Fare	Cabin	Embarked
+0	1	0	3	Braund, Mr. Owen Harris	male	22.0	1	0	A/5 21171	7.2500	NaN	S
+1	2	1	1	Cumings, Mrs. John Bradley (Florence Briggs Th...	female	38.0	1	0	PC 17599	71.2833	C85	C
+2	3	1	3	Heikkinen, Miss. Laina	female	26.0	0	0	STON/O2. 3101282	7.9250	NaN	S
+3	4	1	1	Futrelle, Mrs. Jacques Heath (Lily May Peel)	female	35.0	1	0	113803	53.1000	C123	S
+4	5	0	3	Allen, Mr. William Henry	male	35.0	0	0	373450	8.0500	NaN	S
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
