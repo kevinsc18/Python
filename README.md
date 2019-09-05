@@ -20,3 +20,5 @@ git push
     git add your_folder_with_repo/
     git commit -m "Add folder"
     git push
+####  ths is I use to push to remote
+git push --set-upstream origin master
