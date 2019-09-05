@@ -1,4 +1,5 @@
-#%%import numpy as np
+#%%
+import numpy as np
 #%%
 np.random.seed(100)
 np_hist = np.random.normal(loc=0,scale =1,size =1000)
